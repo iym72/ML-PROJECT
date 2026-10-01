@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phishing Website Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    input[type="url"],
+    input[type="text"] {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0f172a;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      padding: 14px 28px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .result {
+      display: none;
+      margin-top: 8px;
+    }
+
+    .result.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .verdict {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 24px;
+    }
+
+    .verdict.safe {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
+    .verdict.suspicious {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .verdict.phishing {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .verdict-icon {
+      font-size: 2.5rem;
+      line-height: 1;
+    }
+
+    .verdict-text h2 {
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+
+    .verdict-text p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .score-bar {
+      height: 8px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 12px 0 4px;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s ease;
+    }
+
+    .score-fill.low { background: var(--success); }
+    .score-fill.medium { background: var(--warning); }
+    .score-fill.high { background: var(--danger); }
+
+    .score-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .checks {
+      display: grid;
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+      border: 1px solid transparent;
+    }
+
+    .check-item.pass {
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .check-item.fail {
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .check-item.warn {
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .check-icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .check-content h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .check-content p {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .tips {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tips h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+
+    .tips ul {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .tips li {
+      font-size: 0.9rem;
+      color: var(--muted);
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .tips li::before {
+      content: "•";
+      position: absolute;
+      left: 6px;
+      color: var(--primary);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    @media (max-width: 540px) {
+      .input-group {
+        flex-direction: column;
+      }
+      header h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🛡️ Phishing Website Detector</h1>
+      <p>Analyze any URL for common phishing indicators</p>
+    </header>
+
+    <div class="card">
+      <div class="input-group">
+        <input type="text" id="urlInput" placeholder="Enter URL (e.g. https://example.com/login)" autocomplete="off" spellcheck="false">
+        <button id="analyzeBtn" onclick="analyzeURL()">Analyze</button>
+      </div>
+
+      <div id="result" class="result">
+        <!-- Filled by JS -->
+      </div>
+
+      <div class="tips">
+        <h3>Quick Tips</h3>
+        <ul>
+          <li>Always check the domain spelling carefully (e.g. paypa1.com vs paypal.com)</li>
+          <li>Look for HTTPS and a valid padlock icon in the browser</li>
+          <li>Be wary of urgent language, unexpected attachments, or requests for credentials</li>
+          <li>Hover over links before clicking to preview the real destination</li>
+          <li>This tool uses heuristics only — it is not a guarantee of safety</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>
+      Educational tool • Client-side analysis only • Not affiliated with any security vendor
+    </footer>
+  </div>
+
+  <script>
+    // Common phishing keywords & patterns
+    const SUSPICIOUS_KEYWORDS = [
+      'login', 'signin', 'sign-in', 'verify', 'account', 'update', 'secure',
+      'banking', 'confirm', 'password', 'credential', 'wallet', 'support',
+      'recover', 'unlock', 'suspended', 'limited', 'unusual', 'activity'
+    ];
+
+    const SUSPICIOUS_TLDS = [
+      '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.club', '.work',
+      '.click', '.link', '.online', '.site', '.icu', '.buzz', '.rest'
+    ];
+
+    const KNOWN_BRANDS = [
+      'paypal', 'apple', 'microsoft', 'google', 'amazon', 'facebook', 'instagram',
+      'netflix', 'ebay', 'chase', 'wellsfargo', 'bankofamerica', 'citibank',
+      'dropbox', 'linkedin', 'twitter', 'whatsapp', 'telegram', 'steam',
+      'binance', 'coinbase', 'metamask', 'irs', 'ssn'
+    ];
+
+    function normalizeURL(input) {
+      let url = input.trim();
+      if (!url) return null;
+      if (!/^https?:\/\//i.test(url)) {
+        url = 'https://' + url;
+      }
+      try {
+        return new URL(url);
+      } catch {
+        return null;
+      }
+    }
+
+    function analyzeURL() {
+      const input = document.getElementById('urlInput').value;
+      const resultEl = document.getElementById('result');
+      const btn = document.getElementById('analyzeBtn');
+
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+
+      setTimeout(() => {
+        const parsed = normalizeURL(input);
+        if (!parsed) {
+          resultEl.innerHTML = `
+            <div class="verdict phishing">
+              <div class="verdict-icon">❌</div>
+              <div class="verdict-text">
+                <h2>Invalid URL</h2>
+                <p>Please enter a valid website address.</p>
+              </div>
+            </div>`;
+          resultEl.classList.add('visible');
+          btn.disabled = false;
+          btn.textContent = 'Analyze';
+          return;
+        }
+
+        const checks = runChecks(parsed);
+        const score = checks.reduce((sum, c) => sum + c.score, 0);
+        const maxScore = checks.length * 10;
+        const riskPercent = Math.min(100, Math.round((score / maxScore) * 100));
+
+        let verdictClass, verdictIcon, verdictTitle, verdictDesc;
+        if (riskPercent >= 55) {
+          verdictClass = 'phishing';
+          verdictIcon = '🚨';
+          verdictTitle = 'High Risk – Likely Phishing';
+          verdictDesc = 'Multiple strong indicators of a phishing site were detected.';
+        } else if (riskPercent >= 30) {
+          verdictClass = 'suspicious';
+          verdictIcon = '⚠️';
+          verdictTitle = 'Suspicious – Exercise Caution';
+          verdictDesc = 'Some warning signs were found. Double-check before entering any information.';
+        } else {
+          verdictClass = 'safe';
+          verdictIcon = '✅';
+          verdictTitle = 'Looks Legitimate';
+          verdictDesc = 'No major phishing indicators detected based on URL analysis.';
+        }
+
+        const scoreClass = riskPercent >= 55 ? 'high' : riskPercent >= 30 ? 'medium' : 'low';
+
+        let checksHTML = checks.map(c => `
+          <div class="check-item ${c.status}">
+            <div class="check-icon">${c.icon}</div>
+            <div class="check-content">
+              <h4>${c.title}</h4>
+              <p>${c.detail}</p>
+            </div>
+          </div>
+        `).join('');
+
+        resultEl.innerHTML = `
+          <div class="verdict ${verdictClass}">
+            <div class="verdict-icon">${verdictIcon}</div>
+            <div class="verdict-text">
+              <h2>${verdictTitle}</h2>
+              <p>${verdictDesc}</p>
+            </div>
+          </div>
+
+          <div class="score-label">
+            <span>Risk Score</span>
+            <span>${riskPercent}%</span>
+          </div>
+          <div class="score-bar">
+            <div class="score-fill ${scoreClass}" style="width: ${riskPercent}%"></div>
+          </div>
+
+          <div class="checks" style="margin-top: 24px;">
+            ${checksHTML}
+          </div>
+        `;
+
+        resultEl.classList.add('visible');
+        btn.disabled = false;
+        btn.textContent = 'Analyze';
+      }, 400);
+    }
+
+    function runChecks(url) {
+      const checks = [];
+      const hostname = url.hostname.toLowerCase();
+      const pathname = url.pathname.toLowerCase();
+      const full = url.href.toLowerCase();
+      const parts = hostname.split('.');
+
+      // 1. IP Address used as hostname
+      const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(':');
+      checks.push({
+        title: 'IP Address in Hostname',
+        status: isIP ? 'fail' : 'pass',
+        icon: isIP ? '❌' : '✅',
+        score: isIP ? 10 : 0,
+        detail: isIP
+          ? 'Uses a raw IP address instead of a domain name — common in phishing.'
+          : 'Uses a proper domain name.'
+      });
+
+      // 2. URL Length
+      const tooLong = full.length > 75;
+      checks.push({
+        title: 'URL Length',
+        status: tooLong ? 'warn' : 'pass',
+        icon: tooLong ? '⚠️' : '✅',
+        score: tooLong ? 5 : 0,
+        detail: tooLong
+          ? `URL is ${full.length} characters long (suspicious if > 75).`
+          : `URL length is normal (${full.length} characters).`
+      });
+
+      // 3. Suspicious TLD
+      const hasBadTLD = SUSPICIOUS_TLDS.some(tld => hostname.endsWith(tld));
+      checks.push({
+        title: 'Top-Level Domain',
+        status: hasBadTLD ? 'fail' : 'pass',
+        icon: hasBadTLD ? '❌' : '✅',
+        score: hasBadTLD ? 8 : 0,
+        detail: hasBadTLD
+          ? `Uses a high-risk TLD (${hostname.split('.').pop()}).`
+          : 'TLD appears common / lower risk.'
+      });
+
+      // 4. Excessive subdomains
+      const subdomainCount = parts.length - 2;
+      const manySubs = subdomainCount >= 3;
+      checks.push({
+        title: 'Subdomain Depth',
+        status: manySubs ? 'warn' : 'pass',
+        icon: manySubs ? '⚠️' : '✅',
+        score: manySubs ? 6 : 0,
+        detail: manySubs
+          ? `Has ${subdomainCount} subdomains — often used to disguise the real domain.`
+          : 'Subdomain structure looks normal.'
+      });
+
+      // 5. Brand impersonation (brand name in subdomain but different domain)
+      let brandHit = null;
+      for (const brand of KNOWN_BRANDS) {
+        if (hostname.includes(brand) && !hostname.endsWith(brand + '.com') && !hostname.endsWith(brand + '.net') && !hostname.endsWith(brand + '.org')) {
+          // Check if the registered domain is not the brand
+          const registered = parts.slice(-2).join('.');
+          if (!registered.includes(brand)) {
+            brandHit = brand;
+            break;
+          }
+        }
+      }
+      checks.push({
+        title: 'Brand Impersonation',
+        status: brandHit ? 'fail' : 'pass',
+        icon: brandHit ? '❌' : '✅',
+        score: brandHit ? 10 : 0,
+        detail: brandHit
+          ? `Contains brand name "${brandHit}" but the real domain is different — classic phishing tactic.`
+          : 'No obvious brand impersonation detected.'
+      });
+
+      // 6. Suspicious keywords in path or query
+      const hasKeywords = SUSPICIOUS_KEYWORDS.some(kw => pathname.includes(kw) || url.search.toLowerCase().includes(kw));
+      checks.push({
+        title: 'Suspicious Keywords',
+        status: hasKeywords ? 'warn' : 'pass',
+        icon: hasKeywords ? '⚠️' : '✅',
+        score: hasKeywords ? 4 : 0,
+        detail: hasKeywords
+          ? 'Path or query contains login/account related keywords.'
+          : 'No high-risk keywords found in path.'
+      });
+
+      // 7. HTTPS presence
+      const isHTTPS = url.protocol === 'https:';
+      checks.push({
+        title: 'HTTPS Protocol',
+        status: isHTTPS ? 'pass' : 'fail',
+        icon: isHTTPS ? '✅' : '❌',
+        score: isHTTPS ? 0 : 7,
+        detail: isHTTPS
+          ? 'Uses HTTPS (encrypted connection).'
+          : 'Uses HTTP only — data is sent in clear text.'
+      });
+
+      // 8. @ symbol (credential in URL)
+      const hasAt = full.includes('@');
+      checks.push({
+        title: 'Credentials in URL (@ symbol)',
+        status: hasAt ? 'fail' : 'pass',
+        icon: hasAt ? '❌' : '✅',
+        score: hasAt ? 9 : 0,
+        detail: hasAt
+          ? 'Contains @ symbol — can be used to hide the real destination.'
+          : 'No credentials embedded in the URL.'
+      });
+
+      // 9. Hyphen count in domain
+      const hyphenCount = (hostname.match(/-/g) || []).length;
+      const manyHyphens = hyphenCount >= 3;
+      checks.push({
+        title: 'Hyphens in Domain',
+        status: manyHyphens ? 'warn' : 'pass',
+        icon: manyHyphens ? '⚠️' : '✅',
+        score: manyHyphens ? 4 : 0,
+        detail: manyHyphens
+          ? `Domain contains ${hyphenCount} hyphens — sometimes used in lookalike domains.`
+          : 'Normal hyphen usage.'
+      });
+
+      // 10. Very short or random-looking domain
+      const mainDomain = parts.length >= 2 ? parts[parts.length - 2] : hostname;
+      const looksRandom = mainDomain.length <= 4 || /^[a-z0-9]{10,}$/.test(mainDomain) && !/[aeiou]{2}/.test(mainDomain);
+      checks.push({
+        title: 'Domain Legitimacy',
+        status: looksRandom ? 'warn' : 'pass',
+        icon: looksRandom ? '⚠️' : '✅',
+        score: looksRandom ? 5 : 0,
+        detail: looksRandom
+          ? 'Domain name appears unusually short or random.'
+          : 'Domain name structure looks typical.'
+      });
+
+      return checks;
+    }
+
+    // Allow Enter key
+    document.getElementById('urlInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') analyzeURL();
+    });
+  </script>
+</body>
+</html>
